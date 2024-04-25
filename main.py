@@ -6,12 +6,13 @@ import pdfrw
 from pdfminer.pdfparser import PDFParser
 from pdfminer.pdfdocument import PDFDocument
 from pdfminer.pdftypes import PDFObjRef
+from config import OPENAI_API_KEY, EMBEDDING_FILE, PDF_FILES, INPUT_PDF_PATH, OUTPUT_PDF_PATH, OPENAI_MODEL, MAX_RETRIES, RETRY_DELAY, TOP_N, SIMILARITY_THRESHOLD
 
 # Check if OPENAI_API_KEY has been correctly set ('none' means failed)
 # Adding Your API Key to the environment variables using export OPENAI_API_KEY="YOUR OPENAI API KEY"
 print(os.getenv("OPENAI_API_KEY"))
 
-embedding_file = 'glove.6B.300d.txt'
+embedding_file = EMBEDDING_FILE
 embedding_dict = {}
 
 start_program = time.time()
@@ -27,7 +28,7 @@ print(f"Total Words in Dict: {len(embedding_dict)}")
 end_loading_embeddings = time.time()
 
 
-def extract_form_fields(pdf_file):
+def extract_form_fields(PDF_FILES):
     """
     Extract FIELD VALUES from PDFs.
 
@@ -60,7 +61,7 @@ def extract_form_fields(pdf_file):
                 t = ''
         return t
 
-    with open(pdf_file, 'rb') as f:
+    with open(PDF_FILES, 'rb') as f:
         parser = PDFParser(f)
         document = PDFDocument(parser)
         catalog = document.catalog
@@ -108,7 +109,7 @@ def compute_similarity(vector, matrix, topN, threshold=0.5):
     return top_indices
 
 
-def match_topn_key_values(key, topN=5, threshold=0.5):
+def match_topn_key_values(key, topN=TOP_N, threshold=SIMILARITY_THRESHOLD):
     """
     Match the top-N key-value pairs based on similarity.
 
@@ -166,14 +167,14 @@ def get_openai_result(prompt):
         str: The result obtained from the OpenAI API.
     """
     # Initialize the OpenAI client using an environment variable for the API key
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(api_key=os.getenv(OPENAI_API_KEY))
 
     retries = 0
-    while retries < 5:
+    while retries < MAX_RETRIES:
         try:
             # Create a chat completion using the OpenAI client
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant with filling forms."},
                     {"role": "user", "content": prompt}
@@ -185,11 +186,11 @@ def get_openai_result(prompt):
         except APIError as e:
             print(f"API error occurred: {e}")
             retries += 1
-            time.sleep(10 * retries)  # Incremental backoff
+            time.sleep(RETRY_DELAY * retries)  # Incremental backoff
         except RateLimitError:
             retries += 1
             print(f"Rate limit exceeded, retrying after some delay ({retries}/5)")
-            time.sleep(10 * retries)  # Incremental backoff
+            time.sleep(RETRY_DELAY * retries)  # Incremental backoff
     return "Unable to get response from OpenAI due to rate limits or API errors."
 
 
@@ -236,9 +237,9 @@ def write_data_to_pdf(input_pdf_path, output_pdf_path):
     print(f'Write file: ’{output_pdf_path}‘ finished!!!')
 
 
-pdf_files = ["forms/example_form1.pdf", "forms/example_form2.pdf", "forms/example_form3.pdf"]
+PDF_FILES = ["forms/example_form1.pdf", "forms/example_form2.pdf", "forms/example_form3.pdf"]
 results = {}
-for pdf_file in pdf_files:
+for pdf_file in PDF_FILES:
     print(f'pdf_file: {pdf_file}')
     result = extract_form_fields(pdf_file)
     for k, v in result.items():
@@ -261,8 +262,8 @@ for key, value in results.items():
 
 pdf_key_vecs = np.array(pdf_key_vecs)
 
-input_pdf_path = 'forms/example_form1.pdf'
-output_pdf_path = 'forms/Output_form_result.pdf'
+input_pdf_path = INPUT_PDF_PATH
+output_pdf_path = OUTPUT_PDF_PATH
 
 write_start = time.time()
 write_data_to_pdf(input_pdf_path, output_pdf_path)
