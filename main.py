@@ -28,9 +28,26 @@ end_loading_embeddings = time.time()
 
 
 def extract_form_fields(pdf_file):
-    """extract FIELD VALUES from PDFs"""
+    """
+    Extract FIELD VALUES from PDFs.
+
+    Args:
+        pdf_file (str): Path to the PDF file.
+
+    Returns:
+        dict: A dictionary containing the extracted form fields and their values.
+    """
 
     def deal_null(t):
+        """
+        Handle null values in the PDF form fields.
+
+        Args:
+            t: The value to be processed.
+
+        Returns:
+            str: The processed value.
+        """
         try:
             if t is not None:
                 t = t.decode('utf-8')
@@ -70,6 +87,18 @@ def extract_form_fields(pdf_file):
 
 
 def compute_similarity(vector, matrix, topN, threshold=0.5):
+    """
+    Compute the similarity between a vector and a matrix of vectors.
+
+    Args:
+        vector (numpy.ndarray): The input vector.
+        matrix (numpy.ndarray): The matrix of vectors.
+        topN (int): The number of top similar vectors to return.
+        threshold (float, optional): The similarity threshold. Defaults to 0.5.
+
+    Returns:
+        numpy.ndarray: The indices of the top similar vectors.
+    """
     similarity_scores = np.dot(matrix, vector) / (np.linalg.norm(matrix, axis=1) * np.linalg.norm(vector))
     top_indices = np.where(similarity_scores >= threshold)[0]
     top_indices = top_indices[np.argsort(similarity_scores[top_indices])[::-1]]
@@ -80,6 +109,17 @@ def compute_similarity(vector, matrix, topN, threshold=0.5):
 
 
 def match_topn_key_values(key, topN=5, threshold=0.5):
+    """
+    Match the top-N key-value pairs based on similarity.
+
+    Args:
+        key (str): The input key.
+        topN (int, optional): The number of top key-value pairs to return. Defaults to 5.
+        threshold (float, optional): The similarity threshold. Defaults to 0.5.
+
+    Returns:
+        dict: A dictionary containing the top-N key-value pairs.
+    """
     output_dict = {}
     input_embed = [embedding_dict[w] for w in key.lower().split() if w in embedding_dict]
     if not input_embed:
@@ -91,6 +131,16 @@ def match_topn_key_values(key, topN=5, threshold=0.5):
 
 
 def cat_prompt(input_key, target_keys):
+    """
+    Concatenate the input key and target keys into a prompt string.
+
+    Args:
+        input_key (str): The input key.
+        target_keys (dict): A dictionary containing the target keys and their values.
+
+    Returns:
+        str: The concatenated prompt string.
+    """
     print("\n=======================================================")
     r_str = ['\nInput Fields Below']
     for k, v in target_keys.items():
@@ -106,6 +156,15 @@ def cat_prompt(input_key, target_keys):
 
 
 def get_openai_result(prompt):
+    """
+    Get the result from the OpenAI API.
+
+    Args:
+        prompt (str): The input prompt.
+
+    Returns:
+        str: The result obtained from the OpenAI API.
+    """
     # Initialize the OpenAI client using an environment variable for the API key
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -135,6 +194,13 @@ def get_openai_result(prompt):
 
 
 def write_data_to_pdf(input_pdf_path, output_pdf_path):
+    """
+    Write data to the output PDF file.
+
+    Args:
+        input_pdf_path (str): Path to the input PDF file.
+        output_pdf_path (str): Path to the output PDF file.
+    """
     template_pdf = pdfrw.PdfReader(input_pdf_path)
     for page in template_pdf.pages:
         annotations = page['/Annots']
